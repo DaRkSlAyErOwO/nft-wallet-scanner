@@ -4,7 +4,7 @@ A CLI tool for analyzing NFT wallets, ranking them by portfolio value and tradin
 
 ---
 
-## 🚀 Dumbproof Setup Guide
+## 🚀 Setup Guide
 
 This guide will walk you through setting up and running the NFT Wallet Scanner on your computer, whether you are on Windows or Mac. No prior coding experience required!
 
