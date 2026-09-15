@@ -17,19 +17,30 @@ def extract_addresses(filepath: str) -> List[str]:
             if not headers:
                 return []
             
-            wallet_idx = 0
+            wallet_idx = -1
             for i, h in enumerate(headers):
-                if h.strip().lower() in ['wallet', 'address']:
+                if 'wallet' in h.strip().lower() or 'address' in h.strip().lower():
                     wallet_idx = i
                     break
                     
             for row in reader:
+                if not row: continue
+                
+                # Auto-detect column from first row if header matching failed
+                if wallet_idx == -1:
+                    for i, cell in enumerate(row):
+                        if cell.strip().startswith('0x') and len(cell.strip()) == 42:
+                            wallet_idx = i
+                            break
+                    if wallet_idx == -1:
+                        wallet_idx = 0 # fallback to 0
+                        
                 if len(row) > wallet_idx:
                     addr = row[wallet_idx].strip()
                     if addr.startswith('0x') and len(addr) == 42:
                         addresses.add(addr.lower())
                     elif addr:
-                        print(f"Skipping invalid address format: {addr}")
+                        pass # Silently skip non-addresses to reduce log spam
         else:
             for line in f:
                 addr = line.strip()
