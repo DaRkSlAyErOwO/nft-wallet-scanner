@@ -69,3 +69,7 @@ class OpenSeaClient:
     def get_sales(self, address: str) -> requests.Response:
         url = f"https://api.opensea.io/api/v2/events/accounts/{address}?event_type=sale&limit=50"
         return self._request("GET", url)
+
+    def get_portfolio(self, address: str) -> requests.Response:
+        url = f"https://api.opensea.io/api/v2/account/{address}/portfolio"
+        return self._request("GET", url)

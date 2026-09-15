@@ -43,7 +43,8 @@ class CacheDB:
                 ("portfolio_usd", "TEXT", "'UNKNOWN'"),
                 ("portfolio_nft_usd", "TEXT", "'UNKNOWN'"),
                 ("portfolio_token_usd", "TEXT", "'UNKNOWN'"),
-                ("pnl_usd", "TEXT", "'UNKNOWN'")
+                ("pnl_usd", "TEXT", "'UNKNOWN'"),
+                ("raw_portfolio_json", "TEXT", "NULL")
             ]:
                 try:
                     self.conn.execute(f"ALTER TABLE wallets ADD COLUMN {col} {dtype} DEFAULT {dflt}")
@@ -71,13 +72,13 @@ class CacheDB:
                     address, status, nft_count, collection_count, holding_tier,
                     hand_type, collector_score, confidence, recent_sales,
                     verified_collections, truncated, notes, raw_collections_json,
-                    raw_sales_json, updated_at, sells_recent, buys_recent, unknown_side,
+                    raw_sales_json, raw_portfolio_json, updated_at, sells_recent, buys_recent, unknown_side,
                     portfolio_usd, portfolio_nft_usd, portfolio_token_usd, pnl_usd
                 ) VALUES (
                     :address, :status, :nft_count, :collection_count, :holding_tier,
                     :hand_type, :collector_score, :confidence, :recent_sales,
                     :verified_collections, :truncated, :notes, :raw_collections_json,
-                    :raw_sales_json, :updated_at, :sells_recent, :buys_recent, :unknown_side,
+                    :raw_sales_json, :raw_portfolio_json, :updated_at, :sells_recent, :buys_recent, :unknown_side,
                     :portfolio_usd, :portfolio_nft_usd, :portfolio_token_usd, :pnl_usd
                 )
                 ON CONFLICT(address) DO UPDATE SET
@@ -94,6 +95,7 @@ class CacheDB:
                     notes=excluded.notes,
                     raw_collections_json=excluded.raw_collections_json,
                     raw_sales_json=excluded.raw_sales_json,
+                    raw_portfolio_json=excluded.raw_portfolio_json,
                     updated_at=excluded.updated_at,
                     sells_recent=excluded.sells_recent,
                     buys_recent=excluded.buys_recent,
@@ -110,6 +112,7 @@ class CacheDB:
                 "portfolio_nft_usd": data.get("portfolio_nft_usd", "UNKNOWN"),
                 "portfolio_token_usd": data.get("portfolio_token_usd", "UNKNOWN"),
                 "pnl_usd": data.get("pnl_usd", "UNKNOWN"),
+                "raw_portfolio_json": data.get("raw_portfolio_json", None),
                 **data, 
                 "address": address.lower(), 
                 "updated_at": datetime.utcnow().isoformat()

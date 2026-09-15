@@ -7,6 +7,7 @@ from typing import List
 from src.client import OpenSeaClient
 from src.cache import CacheDB
 from src.scoring import analyze_wallet
+from src.colors import GREEN, CYAN, RESET
 
 def extract_addresses(filepath: str) -> List[str]:
     addresses = set()
@@ -59,26 +60,46 @@ def format_eta(seconds: float) -> str:
     else:
         return f"{seconds/3600:.1f}h"
 
-def export_to_csv(cache: CacheDB, out_path: str, quiet: bool = False):
+def export_to_csv(cache: CacheDB, out_path: str, quiet: bool = False, addresses_subset: List[str] = None):
     wallets = cache.get_all_wallets()
     if not wallets:
         if not quiet:
             print("No wallets in cache to export.")
         return
         
+    if addresses_subset is not None:
+        subset_set = set(addresses_subset)
+        wallets = [w for w in wallets if w['address'] in subset_set]
+        if not wallets:
+            if not quiet:
+                print("No wallets from this run found in cache to export.")
+            return
+
+    if os.path.isdir(out_path):
+        out_path = os.path.join(out_path, 'results.csv')
+    elif not out_path.endswith('.csv') and not out_path.endswith('.txt') and not os.path.isfile(out_path):
+        out_path = os.path.join(out_path, 'results.csv')
+        
     os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
     
     with open(out_path, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
-        keys = wallets[0].keys()
+        keys = [
+            "address", "status", "nft_count", "collection_count", "holding_tier",
+            "hand_type", "sells_recent", "buys_recent", "recent_sales",
+            "portfolio_usd", "portfolio_nft_usd", "portfolio_token_usd", "pnl_usd",
+            "collector_score", "confidence", "truncated", "notes"
+        ]
         writer.writerow(keys)
         for w in wallets:
-            writer.writerow([w[k] for k in keys])
+            w_keys = w.keys()
+            row = [w[k] if k in w_keys else "" for k in keys]
+            writer.writerow(row)
                 
     if not quiet:
         print(f"Exported {len(wallets)} wallets to {out_path}")
 
-def run_batch(input_file: str, out_file: str, limit: int = 0, sleep_time: int = 7):
+def run_batch(input_file: str, out_file: str, limit: int = 0, sleep_time: int = 7, fetch_portfolio: bool = False, resume: bool = True, only_this_run: bool = False):
     addresses = extract_addresses(input_file)
     print(f"Loaded {len(addresses)} unique valid addresses from {input_file}")
     
@@ -99,12 +120,12 @@ def run_batch(input_file: str, out_file: str, limit: int = 0, sleep_time: int = 
     try:
         for i, addr in enumerate(addresses):
             cached = cache.get_wallet(addr)
-            if cached and cached['status'] == 'done':
+            if resume and cached and cached['status'] == 'done':
                 skipped_count += 1
                 done_count += 1
             else:
                 try:
-                    res = analyze_wallet(addr, client, cache, force_refresh=True)
+                    res = analyze_wallet(addr, client, cache, force_refresh=True, fetch_portfolio=fetch_portfolio, quiet=True)
                     if res['status'] == 'done':
                         done_count += 1
                     else:
@@ -121,7 +142,7 @@ def run_batch(input_file: str, out_file: str, limit: int = 0, sleep_time: int = 
                     failed_count += 1
                     
             # Export incrementally
-            export_to_csv(cache, out_file, quiet=True)
+            export_to_csv(cache, out_file, quiet=True, addresses_subset=addresses if only_this_run else None)
             
             # Print progress
             processed = i + 1
@@ -134,7 +155,15 @@ def run_batch(input_file: str, out_file: str, limit: int = 0, sleep_time: int = 
             else:
                 eta_seconds = 0
                 
-            sys.stdout.write(f"\r{processed} / {total} (done={done_count} failed={failed_count} skipped={skipped_count}) eta={format_eta(eta_seconds)}")
+            pct = processed / total if total > 0 else 0
+            bar_len = 20
+            filled_len = int(bar_len * pct)
+            bar = f"{GREEN}{'#' * filled_len}{RESET}{'-' * (bar_len - filled_len)}"
+            pct_str = f"{pct * 100:.1f}%"
+            short_addr = f"{addr[:6]}...{addr[-4:]}"
+            
+            line = f"[{bar}] {processed}/{total}  {GREEN}{pct_str}{RESET}  done={done_count} fail={failed_count} skip={skipped_count}  eta={CYAN}{format_eta(eta_seconds)}{RESET}  {short_addr}"
+            sys.stdout.write("\r" + line.ljust(90))
             sys.stdout.flush()
             
     except KeyboardInterrupt:
@@ -142,7 +171,13 @@ def run_batch(input_file: str, out_file: str, limit: int = 0, sleep_time: int = 
         
     finally:
         print("\n\n--- Batch Summary ---")
+        print(f"This run: {done_count} processed / {failed_count} failed / {skipped_count} skipped")
+        
         wallets = cache.get_all_wallets()
+        done_all = sum(1 for w in wallets if w['status'] == 'done')
+        failed_all = len(wallets) - done_all
+        print(f"\nAll cache: {done_all} processed / {failed_all} failed")
+        
         tier_counts = Counter()
         hand_counts = Counter()
         scores = []
@@ -153,17 +188,9 @@ def run_batch(input_file: str, out_file: str, limit: int = 0, sleep_time: int = 
                 hand_counts[w['hand_type']] += 1
                 scores.append((w['address'], w['collector_score'], w['holding_tier'], w['hand_type']))
                 
-        print("\nHolding Tiers:")
-        for t, c in tier_counts.most_common():
-            print(f"  {t}: {c}")
-            
-        print("\nHand Types:")
-        for h, c in hand_counts.most_common():
-            print(f"  {h}: {c}")
-            
-        print("\nTop 20 Scores:")
+        print("\nTop 10 Scores (All Cache):")
         scores.sort(key=lambda x: x[1], reverse=True)
-        for i, (addr, score, t, h) in enumerate(scores[:20]):
+        for i, (addr, score, t, h) in enumerate(scores[:10]):
             print(f"  {i+1}. {addr}: {score} ({t} / {h})")
             
         cache.close()
