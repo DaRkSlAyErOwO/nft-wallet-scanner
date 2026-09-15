@@ -1,0 +1,14 @@
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+.tmp/
+data/
+scratch/
+directives/
+execution/
+*.db
+dry_run.txt
+test.csv
+.DS_Store
