@@ -99,7 +99,7 @@ def export_to_csv(cache: CacheDB, out_path: str, quiet: bool = False, addresses_
     if not quiet:
         print(f"Exported {len(wallets)} wallets to {out_path}")
 
-def run_batch(input_file: str, out_file: str, limit: int = 0, sleep_time: int = 7, fetch_portfolio: bool = False, resume: bool = True, only_this_run: bool = False):
+def run_batch(input_file: str, out_file: str, limit: int = 0, sleep_time: float = 0.55, fetch_portfolio: bool = False, resume: bool = True, only_this_run: bool = False):
     addresses = extract_addresses(input_file)
     print(f"Loaded {len(addresses)} unique valid addresses from {input_file}")
     

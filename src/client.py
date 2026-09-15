@@ -15,7 +15,7 @@ class OpenSeaClient:
     OpenSea API client.
     Handles rate limiting (HTTP 429), caching, and fetching logic.
     """
-    def __init__(self, api_key: Optional[str] = None, min_delay_sec: int = 7):
+    def __init__(self, api_key: Optional[str] = None, min_delay_sec: float = 0.55):
         self.api_key = api_key or os.getenv("OPENSEA_API_KEY")
         self.min_delay_sec = min_delay_sec
         self.last_request_time = 0.0

@@ -72,6 +72,12 @@ def run_interactive_menu():
                 limit_str = input(f"{WHITE}Limit (blank = all wallets):{RESET} ").strip()
                 limit = int(limit_str) if limit_str.isdigit() else 0
                 
+                sleep_str = input(f"{WHITE}Sleep between requests (seconds) [0.55]:{RESET} ").strip()
+                try:
+                    sleep_val = float(sleep_str) if sleep_str else 0.55
+                except ValueError:
+                    sleep_val = 0.55
+                
                 port_input = input(f"{WHITE}Include portfolio values? [y/N]:{RESET} ").strip().lower()
                 fetch_port = port_input == 'y'
                 
@@ -84,6 +90,7 @@ def run_interactive_menu():
                 
                 cmd = f'python -m src.cli batch "{in_path}" --out "{out_path}"'
                 if limit > 0: cmd += f' --limit {limit}'
+                if sleep_val != 0.55: cmd += f' --sleep {sleep_val}'
                 if fetch_port: cmd += ' --portfolio'
                 if not resume: cmd += ' --no-resume'
                 if only_this_run: cmd += ' --only-this-run'
@@ -161,7 +168,7 @@ def main():
     batch_parser.add_argument("input_file", help="Input .csv or .txt file with addresses")
     batch_parser.add_argument("--out", required=True, help="Output CSV path")
     batch_parser.add_argument("--limit", type=int, default=0, help="Max wallets to process (for testing)")
-    batch_parser.add_argument("--sleep", type=int, default=7, help="Seconds to sleep between requests")
+    batch_parser.add_argument("--sleep", type=float, default=0.55, help="Seconds to sleep between requests")
     batch_parser.add_argument("--portfolio", action="store_true", help="Fetch portfolio value (requires 3rd API call)")
     batch_parser.add_argument("--no-resume", action="store_true", help="Do not skip already done wallets")
     batch_parser.add_argument("--only-this-run", action="store_true", help="Only export the wallets processed in this batch")
